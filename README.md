@@ -18,6 +18,7 @@
    ```sh
    .\vcpkg\vcpkg install soundtouch
    .\vcpkg\vcpkg install portaudio
+   .\vcpkg\vcpkg integrate install
     ```
     
 #### Builden
