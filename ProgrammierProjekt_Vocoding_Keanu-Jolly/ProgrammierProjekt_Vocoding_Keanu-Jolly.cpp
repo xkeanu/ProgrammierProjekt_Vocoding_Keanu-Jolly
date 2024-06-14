@@ -137,8 +137,31 @@ void realtimeVoice(float pitch, float tempo) {
     err = Pa_OpenStream(&stream, &inputParameters, &outputParameters, 48000, paFramesPerBufferUnspecified, paClipOff, paCallback, &soundTouch);
     err = Pa_StartStream(stream);
 
-    cout << "[!] Realtime voice changer active! Press any key to stop..." << endl;
-    _getch();
+    cout << "[!] Realtime voice changer active! Press '+' to increase pitch, '-' to decrease pitch, any other key to stop..." << endl;
+    while (true) {
+        int key = _getch();
+        if (key == '+') {
+            if (pitch >= 2) {
+                cout << "[!] Pitch cannot be increased further" << endl;
+                continue;
+            }
+            pitch += 0.1f;
+            soundTouch.setPitch(pitch);
+            cout << "[!] Pitch increased to " << pitch << endl;
+        }
+        else if (key == '-') {
+            if (pitch <= 0.1) {
+				cout << "[!] Pitch cannot be decreased further" << endl;
+				continue;
+			}
+            pitch -= 0.1f;
+            soundTouch.setPitch(pitch);
+            cout << "[!] Pitch decreased to " << pitch << endl;
+        }
+        else {
+            break;
+        }
+    }
 
     err = Pa_StopStream(stream);
 
@@ -163,7 +186,7 @@ void displayMenu() {
 }
 
 void selectPitchAndTempo(float& pitch, float& tempo) {
-    cout << "[!] Enter Pitch (0.1 - 10): ";
+    cout << "[!] Enter Pitch (0.1 - 2): ";
     cin >> pitch;
     if (cin.fail()) {
         pitch = 1.0f;
