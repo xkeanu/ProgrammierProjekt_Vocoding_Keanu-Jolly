@@ -14,15 +14,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Bookmark",
-              "Name": "ST:128:0:{75188d03-9892-4ae2-abf1-207126247ce5}"
-            },
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+              "Name": "ST:128:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
             },
             {
               "$type": "Document",
@@ -32,7 +28,7 @@
               "RelativeDocumentMoniker": "ProgrammierProjekt_Vocoding_Keanu-Jolly\\ProgrammierProjekt_Vocoding_Keanu-Jolly.cpp",
               "ToolTip": "C:\\Users\\keanu\\Desktop\\UNI\\PP\\ProgrammierProjekt_Vocoding_Keanu-Jolly\\ProgrammierProjekt_Vocoding_Keanu-Jolly\\ProgrammierProjekt_Vocoding_Keanu-Jolly.cpp",
               "RelativeToolTip": "ProgrammierProjekt_Vocoding_Keanu-Jolly\\ProgrammierProjekt_Vocoding_Keanu-Jolly.cpp",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAABAAAAARAAAA",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAsAAAAbAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2024-06-11T13:35:32.472Z",
               "EditorCaption": ""

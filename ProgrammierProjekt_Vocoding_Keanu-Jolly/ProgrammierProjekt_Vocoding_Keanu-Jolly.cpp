@@ -34,9 +34,8 @@ bool readWavFile(const string& fileName, vector<int16_t>& audioData, int& sample
 
     sampleRate = header.sampleRate;
     numChannels = header.numChannels;
-    int bitsPerSample = header.bitsPerSample;
 
-    audioData.resize(header.dataSize / 2);
+    audioData.resize(header.dataSize / sizeof(int16_t));
     file.read(reinterpret_cast<char*>(audioData.data()), header.dataSize);
 
     file.close();
@@ -46,7 +45,7 @@ bool readWavFile(const string& fileName, vector<int16_t>& audioData, int& sample
 bool writeWavFile(const string& fileName, const vector<int16_t>& audioData, int sampleRate, int numChannels) {
     ofstream file(fileName, ios::binary);
 
-    int dataSize = audioData.size() * sizeof(int16_t);
+    int dataSize = static_cast<int>(audioData.size() * sizeof(int16_t));
     file.write("RIFF", 4);
     int chunkSize = 36 + dataSize;
     file.write(reinterpret_cast<const char*>(&chunkSize), 4);
@@ -59,7 +58,7 @@ bool writeWavFile(const string& fileName, const vector<int16_t>& audioData, int 
     file.write(reinterpret_cast<const char*>(&sampleRate), 4);
     int byteRate = sampleRate * numChannels * sizeof(int16_t);
     file.write(reinterpret_cast<const char*>(&byteRate), 4);
-    short blockAlign = numChannels * sizeof(int16_t);
+    short blockAlign = static_cast<short>(numChannels * sizeof(int16_t));
     file.write(reinterpret_cast<const char*>(&blockAlign), 2);
     short bitsPerSample = 16;
     file.write(reinterpret_cast<const char*>(&bitsPerSample), 2);
@@ -98,7 +97,7 @@ void processAudio(const string& inputFileName, const string& outputFileName, flo
     soundTouch.setPitch(pitch);
 
     vector<float> floatAudioData(audioData.begin(), audioData.end());
-    soundTouch.putSamples(floatAudioData.data(), floatAudioData.size() / numChannels);
+    soundTouch.putSamples(floatAudioData.data(), static_cast<uint>(floatAudioData.size() / numChannels));
     int numSamples = soundTouch.numSamples();
     vector<float> processedFloatData(numSamples * numChannels);
     soundTouch.receiveSamples(processedFloatData.data(), numSamples);
@@ -109,7 +108,23 @@ void processAudio(const string& inputFileName, const string& outputFileName, flo
     cout << "[!] Done! Output saved to " << outputFileName << endl;
 }
 
-void realtimeVoice(float pitch, float tempo) {
+void displaySlider(float pitch) {
+    int sliderLength = 20;
+    int position = static_cast<int>((pitch - 0.1f) / (2.0f - 0.1f) * (sliderLength - 1));
+
+    cout << "\033[2K\r[!] Pitch: ";
+    for (int i = 0; i < sliderLength; ++i) {
+        if (i == position) {
+            cout << "0";
+        }
+        else {
+            cout << "-";
+        }
+    }
+    cout.flush();
+}
+
+void realtimeVoice(float pitch) {
     PaError err;
     PaStream* stream;
     PaStreamParameters inputParameters, outputParameters;
@@ -117,7 +132,6 @@ void realtimeVoice(float pitch, float tempo) {
     SoundTouch soundTouch;
     soundTouch.setSampleRate(48000);
     soundTouch.setChannels(2);
-    soundTouch.setTempo(tempo);
     soundTouch.setPitch(pitch);
 
     err = Pa_Initialize();
@@ -137,8 +151,21 @@ void realtimeVoice(float pitch, float tempo) {
     err = Pa_OpenStream(&stream, &inputParameters, &outputParameters, 48000, paFramesPerBufferUnspecified, paClipOff, paCallback, &soundTouch);
     err = Pa_StartStream(stream);
 
-    cout << "[!] Realtime voice changer active! Press any key to stop..." << endl;
-    _getch();
+    cout << "[!] Realtime voice changer active! Press '+' to increase pitch, '-' to decrease pitch, and 'q' to stop..." << endl;
+    displaySlider(pitch);
+    char ch;
+    while ((ch = _getch()) != 'q') {
+        if (ch == '+') {
+            pitch = min(2.0f, pitch + 0.1f);
+            soundTouch.setPitch(pitch);
+            displaySlider(pitch);
+        }
+        else if (ch == '-') {
+            pitch = max(0.1f, pitch - 0.1f);
+            soundTouch.setPitch(pitch);
+            displaySlider(pitch);
+        }
+    }
 
     err = Pa_StopStream(stream);
 
@@ -162,8 +189,8 @@ void displayMenu() {
     cout << "\n[!] Enter your choice: ";
 }
 
-void selectPitchAndTempo(float& pitch, float& tempo) {
-    cout << "[!] Enter Pitch (0.1 - 10): ";
+void selectPitchAndTempo(float& pitch, float& tempo, bool isRealtime) {
+    cout << "[!] Enter Pitch (0.1 - 2.0): ";
     cin >> pitch;
     if (cin.fail()) {
         pitch = 1.0f;
@@ -171,12 +198,14 @@ void selectPitchAndTempo(float& pitch, float& tempo) {
         cin.ignore(numeric_limits<streamsize>::max(), '\n');
     }
 
-    cout << "[!] Enter Tempo (0.1 - 10): ";
-    cin >> tempo;
-    if (cin.fail()) {
-        tempo = 1.0f;
-        cin.clear();
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    if (!isRealtime) {
+        cout << "[!] Enter Tempo (0.1 - 10): ";
+        cin >> tempo;
+        if (cin.fail()) {
+            tempo = 1.0f;
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
     }
 }
 
@@ -191,7 +220,7 @@ int main() {
     switch (choice) {
     case 1:
     case 2:
-        selectPitchAndTempo(pitch, tempo);
+        selectPitchAndTempo(pitch, tempo, choice == 2);
         break;
     default:
         cerr << "[!] Unknown option selected" << endl;
@@ -203,7 +232,7 @@ int main() {
         selectWave(pitch, tempo);
         break;
     case 2:
-        realtimeVoice(pitch, tempo);
+        realtimeVoice(pitch);
         break;
     }
 
