@@ -11,7 +11,7 @@
 using namespace std;
 using namespace soundtouch;
 
-struct WAVHeader { // https://stackoverflow.com/questions/13660777/c-reading-the-data-part-of-a-wav-file
+struct WAVHeader { // WAV-Header-Struktur für das Lesen der WAV-Datei
     char riff[4];
     uint32_t chunkSize;
     char wave[4];
@@ -27,6 +27,7 @@ struct WAVHeader { // https://stackoverflow.com/questions/13660777/c-reading-the
     uint32_t dataSize;
 };
 
+// Funktion zum Lesen einer WAV-Datei
 bool readWavFile(const string& fileName, vector<int16_t>& audioData, int& sampleRate, int& numChannels) {
     ifstream file(fileName, ios::binary);
     WAVHeader header;
@@ -42,6 +43,7 @@ bool readWavFile(const string& fileName, vector<int16_t>& audioData, int& sample
     return true;
 }
 
+// Funktion zum Schreiben einer WAV-Datei
 bool writeWavFile(const string& fileName, const vector<int16_t>& audioData, int sampleRate, int numChannels) {
     ofstream file(fileName, ios::binary);
 
@@ -71,46 +73,49 @@ bool writeWavFile(const string& fileName, const vector<int16_t>& audioData, int 
     return true;
 }
 
+// PortAudio Callback-Funktion zur Echtzeitverarbeitung
 static int paCallback(const void* inputBuffer, void* outputBuffer, unsigned long framesPerBuffer,
     const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void* userData) {
     SoundTouch* soundTouch = static_cast<SoundTouch*>(userData);
 
-    const float* in = static_cast<const float*>(inputBuffer);
-    float* out = static_cast<float*>(outputBuffer);
+    const float* in = static_cast<const float*>(inputBuffer); // Eingabepuffer
+    float* out = static_cast<float*>(outputBuffer); // Ausgabepuffer
 
-    soundTouch->putSamples(in, framesPerBuffer);
-    soundTouch->receiveSamples(out, framesPerBuffer);
+    soundTouch->putSamples(in, framesPerBuffer); // Samples in SoundTouch einfügen
+    soundTouch->receiveSamples(out, framesPerBuffer); // Verarbeitete Samples abrufen
 
     return paContinue;
 }
 
+// Funktion zur Verarbeitung der Audiodatei mit SoundTouch
 void processAudio(const string& inputFileName, const string& outputFileName, float pitch, float tempo) {
     vector<int16_t> audioData;
     int sampleRate, numChannels;
 
-    readWavFile(inputFileName, audioData, sampleRate, numChannels);
+    readWavFile(inputFileName, audioData, sampleRate, numChannels); // WAV-Datei lesen
 
     SoundTouch soundTouch;
-    soundTouch.setSampleRate(sampleRate);
-    soundTouch.setChannels(numChannels);
-    soundTouch.setTempo(tempo);
-    soundTouch.setPitch(pitch);
+    soundTouch.setSampleRate(sampleRate); // Abtastrate einstellen
+    soundTouch.setChannels(numChannels); // Kanäle einstellen
+    soundTouch.setTempo(tempo); // Tempo einstellen
+    soundTouch.setPitch(pitch); // Pitch einstellen
 
-    vector<float> floatAudioData(audioData.begin(), audioData.end());
-    soundTouch.putSamples(floatAudioData.data(), static_cast<uint>(floatAudioData.size() / numChannels));
-    int numSamples = soundTouch.numSamples();
-    vector<float> processedFloatData(numSamples * numChannels);
-    soundTouch.receiveSamples(processedFloatData.data(), numSamples);
+    vector<float> floatAudioData(audioData.begin(), audioData.end()); // Audiodaten in float umwandeln
+    soundTouch.putSamples(floatAudioData.data(), static_cast<uint>(floatAudioData.size() / numChannels)); // Daten in SoundTouch einfügen
+    int numSamples = soundTouch.numSamples(); // Anzahl der verarbeiteten Samples abrufen
+    vector<float> processedFloatData(numSamples * numChannels); // Speicher für verarbeitete Daten reservieren
+    soundTouch.receiveSamples(processedFloatData.data(), numSamples); // Verarbeitete Daten abrufen
 
-    vector<int16_t> processedData(processedFloatData.begin(), processedFloatData.end());
+    vector<int16_t> processedData(processedFloatData.begin(), processedFloatData.end()); // Daten zurück in int16_t konvertieren
 
-    writeWavFile(outputFileName, processedData, sampleRate, numChannels);
+    writeWavFile(outputFileName, processedData, sampleRate, numChannels); // Verarbeitete Daten in Datei speichern
     cout << "[!] Done! Output saved to " << outputFileName << endl;
 }
 
+// Funktion zur Anzeige des Sliders für die Echtzeit-Pitch-Anpassung
 void displaySlider(float pitch) {
-    int sliderLength = 20;
-    int position = static_cast<int>((pitch - 0.1f) / (2.0f - 0.1f) * (sliderLength - 1));
+    int sliderLength = 20; // Länge des Sliders
+    int position = static_cast<int>((pitch - 0.1f) / (2.0f - 0.1f) * (sliderLength - 1)); // Position des Sliders basierend auf dem Pitch
 
     cout << "\033[2K\r[!] Pitch: ";
     for (int i = 0; i < sliderLength; ++i) {
@@ -124,55 +129,57 @@ void displaySlider(float pitch) {
     cout.flush();
 }
 
+// Funktion für die Echtzeit-Sprachverarbeitung
 void realtimeVoice(float pitch) {
     PaError err;
     PaStream* stream;
     PaStreamParameters inputParameters, outputParameters;
 
     SoundTouch soundTouch;
-    soundTouch.setSampleRate(48000);
-    soundTouch.setChannels(2);
-    soundTouch.setPitch(pitch);
+    soundTouch.setSampleRate(48000); // Abtastrate einstellen
+    soundTouch.setChannels(2); // Anzahl der Kanäle einstellen
+    soundTouch.setPitch(pitch); // Pitch einstellen
 
-    err = Pa_Initialize();
+    err = Pa_Initialize(); // PortAudio initialisieren
 
-    inputParameters.device = Pa_GetDefaultInputDevice();
+    inputParameters.device = Pa_GetDefaultInputDevice(); // Standard-Eingabegerät
     inputParameters.channelCount = 2;
     inputParameters.sampleFormat = paFloat32;
     inputParameters.suggestedLatency = Pa_GetDeviceInfo(inputParameters.device)->defaultLowInputLatency;
     inputParameters.hostApiSpecificStreamInfo = NULL;
 
-    outputParameters.device = Pa_GetDefaultOutputDevice();
+    outputParameters.device = Pa_GetDefaultOutputDevice(); // Standard-Ausgabegerät
     outputParameters.channelCount = 2;
     outputParameters.sampleFormat = paFloat32;
     outputParameters.suggestedLatency = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
     outputParameters.hostApiSpecificStreamInfo = NULL;
 
-    err = Pa_OpenStream(&stream, &inputParameters, &outputParameters, 48000, paFramesPerBufferUnspecified, paClipOff, paCallback, &soundTouch);
-    err = Pa_StartStream(stream);
+    err = Pa_OpenStream(&stream, &inputParameters, &outputParameters, 48000, paFramesPerBufferUnspecified, paClipOff, paCallback, &soundTouch); // Audio-Stream öffnen
+    err = Pa_StartStream(stream); // Audio-Stream starten
 
     cout << "[!] Realtime voice changer active! Press '+' to increase pitch, '-' to decrease pitch, and 'q' to stop..." << endl;
     displaySlider(pitch);
     char ch;
-    while ((ch = _getch()) != 'q') {
+    while ((ch = _getch()) != 'q') { // Benutzereingaben verarbeiten
         if (ch == '+') {
-            pitch = min(2.0f, pitch + 0.1f);
+            pitch = min(2.0f, pitch + 0.1f); // Pitch erhöhen
             soundTouch.setPitch(pitch);
             displaySlider(pitch);
         }
         else if (ch == '-') {
-            pitch = max(0.1f, pitch - 0.1f);
+            pitch = max(0.1f, pitch - 0.1f); // Pitch verringern
             soundTouch.setPitch(pitch);
             displaySlider(pitch);
         }
     }
 
-    err = Pa_StopStream(stream);
+    err = Pa_StopStream(stream); // Audio-Stream stoppen
 
-    Pa_CloseStream(stream);
-    Pa_Terminate();
+    Pa_CloseStream(stream); // Audio-Stream schließen
+    Pa_Terminate(); // PortAudio beenden
 }
 
+// Funktion zum Auswählen der WAV-Datei und Verarbeitung
 void selectWave(float pitch, float tempo) {
     string inputFileName, outputFileName;
     cout << "[!] Enter wave file name: ";
@@ -180,28 +187,30 @@ void selectWave(float pitch, float tempo) {
     cout << "[!] Enter output wave file name: ";
     cin >> outputFileName;
 
-    processAudio(inputFileName, outputFileName, pitch, tempo);
+    processAudio(inputFileName, outputFileName, pitch, tempo); // Audiodatei verarbeiten
 }
 
+// Funktion zur Anzeige des Menüs
 void displayMenu() {
     cout << "\n[+] 1: Select Wave" << endl;
     cout << "[+] 2: Realtime (Default mic)" << endl;
     cout << "\n[!] Enter your choice: ";
 }
 
+// Funktion zur Auswahl von Pitch und Tempo
 void selectPitchAndTempo(float& pitch, float& tempo, bool isRealtime) {
     cout << "[!] Enter Pitch (0.1 - 2.0): ";
-    cin >> pitch;
-    if (cin.fail()) {
+    cin >> pitch; // Pitch eingeben
+    if (cin.fail()) { // Fehlerbehandlung bei ungültiger Eingabe
         pitch = 1.0f;
         cin.clear();
         cin.ignore(numeric_limits<streamsize>::max(), '\n');
     }
 
-    if (!isRealtime) {
+    if (!isRealtime) { // Tempo nur eingeben, wenn nicht im Echtzeitmodus
         cout << "[!] Enter Tempo (0.1 - 10): ";
-        cin >> tempo;
-        if (cin.fail()) {
+        cin >> tempo; // Tempo eingeben
+        if (cin.fail()) { // Fehlerbehandlung bei ungültiger Eingabe
             tempo = 1.0f;
             cin.clear();
             cin.ignore(numeric_limits<streamsize>::max(), '\n');
@@ -209,18 +218,19 @@ void selectPitchAndTempo(float& pitch, float& tempo, bool isRealtime) {
     }
 }
 
+// Hauptfunktion
 int main() {
     int choice;
     float pitch = 1.0f;
     float tempo = 1.0f;
 
-    displayMenu();
-    cin >> choice;
+    displayMenu(); // Menü anzeigen
+    cin >> choice; // Benutzerauswahl einlesen
 
     switch (choice) {
     case 1:
     case 2:
-        selectPitchAndTempo(pitch, tempo, choice == 2);
+        selectPitchAndTempo(pitch, tempo, choice == 2); // Pitch und Tempo auswählen
         break;
     default:
         cerr << "[!] Unknown option selected" << endl;
@@ -229,10 +239,10 @@ int main() {
 
     switch (choice) {
     case 1:
-        selectWave(pitch, tempo);
+        selectWave(pitch, tempo); // WAV-Datei auswählen und verarbeiten
         break;
     case 2:
-        realtimeVoice(pitch);
+        realtimeVoice(pitch); // Echtzeit-Sprachverarbeitung
         break;
     }
 
